@@ -64,8 +64,7 @@
     EventProxy.prototype.$eventLibary = {
         'default': {
             type: 'default',
-            queue: [],
-            isOnce: false
+            queue: []
         }
     }
 
@@ -91,8 +90,51 @@
 
     //订阅事件 只触发一次
     EventProxy.prototype.once = function (type, handler) {
-        this.on(type, handler)
-        this.$eventLibary[type].isOnce = true
+        var that = this
+        function on () {
+            that.off(type, on)
+            handler.apply(null, arguments)
+        }
+        this.on(type, on)
+    }
+
+
+    //移除事件
+    EventProxy.prototype.off = function (type, handler) {
+        //all 
+        if (!type) {
+            this.$eventLibary = {
+                'default': {
+                    type: 'default',
+                    queue: []
+                }
+            }
+            return;
+        }
+
+        var eventModel = this.$eventLibary[type]
+
+        //without event model
+        if (!eventModel) return;
+
+        //specity event
+        if (!handler) {
+            eventModel.queue = []
+            return;
+        }
+
+        //specity handler
+        var cbs = eventModel.queue
+        var cbsLen = cbs.length
+        var cb
+
+        while (cbsLen--) {
+            cb = cbs[cbsLen]
+            if (cb === handler) {
+                cbs.splice(cbsLen, 1)
+                break;
+            }
+        }
     }
 
 
@@ -107,7 +149,7 @@
 
         if (allEventQueueIndex !== false) {
             this.$emitAll($aboutAll, args, allEventQueueIndex);
-        } else if (eventModel && Array.isArray(eventModel.queue) && eventModel.queue.length > 0) {
+        } else if (eventModel && Array.isArray(eventModel.queue)) {
             this.$emitNormal(eventModel, args)
         } else {
             throw new Error('The event of ' + type + ' is not exist')
@@ -128,15 +170,12 @@
 
 
     EventProxy.prototype.$emitNormal = function (model, parameter) {
-        var isOnce = model.isOnce
-        if (isOnce === 'ran') return;
         var loop = 0,
             item;
         var queue = model.queue
         while (item = queue[loop++]) {
             item.apply(null, parameter)
         }
-        if (isOnce) model.isOnce = 'ran'
     }
 
 
