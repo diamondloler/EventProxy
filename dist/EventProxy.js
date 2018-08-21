@@ -9,6 +9,7 @@
         root.EventProxy = factory(root);
     }
 })(typeof global !== 'undefined' ? global : typeof window !== 'undefined' ? window : this, function (window) {
+    "use strict";
 
     //限制类型
     var limitType = function (type) {
@@ -174,7 +175,18 @@
             item;
         var queue = model.queue
         while (item = queue[loop++]) {
-            item.apply(null, parameter)
+            try {
+                item.apply(null, parameter)
+            } catch (error) {
+                console.warn(
+                    'This \"' + 
+                    model.type + 
+                    '\" event handler goes wrong, occured in :\n\n' + 
+                    item.toString() + 
+                    '\n\nThe error info as follow: \n' + 
+                    error.stack
+                )
+            }
         }
     }
 
