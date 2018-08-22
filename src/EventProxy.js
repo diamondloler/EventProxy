@@ -13,7 +13,7 @@
 
     // limit type
     var limitType = function (type) {
-        if (type == 'default') throw new Error('The 1st argument must be a string except default')
+        if (type == 'default') throw new Error('The 1st argument must be a string except \"default\"')
     }
 
     var isFunction = function (v) {
