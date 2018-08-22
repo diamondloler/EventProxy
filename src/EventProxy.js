@@ -11,7 +11,7 @@
 })(typeof global !== 'undefined' ? global : typeof window !== 'undefined' ? window : this, function (window) {
     "use strict";
 
-    //限制类型
+    // limit type
     var limitType = function (type) {
         if (type == 'default') throw new Error('The 1st argument must be a string except default')
     }
@@ -22,7 +22,7 @@
 
     var __slice = Array.prototype.slice
 
-    //深度复制
+    // clone deep
     var deepClone = function (src) {
         var temp = {}
         for (var key in src) {
@@ -30,8 +30,8 @@
         }
         return JSON.parse(JSON.stringify(temp))
     }
-
-    //将嵌套数组扁平化 例如：[[100, [102, 103]], 400, [500, 600]] -> [100, 102, 103, 400, 500, 600]
+    
+    // to flatten for nested array , for example：[[100, [102, 103]], 400, [500, 600]] -> [100, 102, 103, 400, 500, 600]
     var flattening = function (arr) {
         var newArr = []
         var len = arr.length
@@ -57,12 +57,7 @@
     }
 
 
-    //构造器
-    var EventProxy = function () {}
-
-
-    //事件库
-    EventProxy.prototype.$eventLibary = {
+    var defaultEventModel = {
         'default': {
             type: 'default',
             queue: []
@@ -70,7 +65,15 @@
     }
 
 
-    //订阅事件
+    // constructor
+    var EventProxy = function () {}
+
+
+    // event libary
+    EventProxy.prototype.$eventLibary = defaultEventModel
+
+
+    // subscription event
     EventProxy.prototype.on = function (type, handler) {
         limitType(type)
 
@@ -80,138 +83,128 @@
 
         var $eventLibary = this.$eventLibary
         var currEventModel = $eventLibary[type]
+
         if (currEventModel) {
             return currEventModel.queue.push(handler)
         }
+
         $eventLibary[type] = deepClone($eventLibary['default'])
         $eventLibary[type].type = type
         $eventLibary[type].queue.push(handler)
     }
 
 
-    //订阅事件 只触发一次
+    // only once subscription event
     EventProxy.prototype.once = function (type, handler) {
         var that = this
-        function on () {
+
+        function on() {
             that.off(type, on)
             handler.apply(null, arguments)
         }
+
         this.on(type, on)
     }
 
 
-    //移除事件
+    // remove event
     EventProxy.prototype.off = function (type, handler) {
-        //all 
+        // all 
         if (!type) {
-            this.$eventLibary = {
-                'default': {
-                    type: 'default',
-                    queue: []
-                }
-            }
+            this.$eventLibary = defaultEventModel
             return;
         }
 
         var eventModel = this.$eventLibary[type]
 
-        //without event model
+        // without event model
         if (!eventModel) return;
 
-        //specity event
+        // specity event
         if (!handler) {
             eventModel.queue = []
             return;
         }
 
-        //specity handler
+        // specity handler
         var cbs = eventModel.queue
-        var cbsLen = cbs.length
+        var loop = cbs.length
         var cb
 
-        while (cbsLen--) {
-            cb = cbs[cbsLen]
+        while (loop--) {
+            cb = cbs[loop]
             if (cb === handler) {
-                cbs.splice(cbsLen, 1)
+                cbs.splice(loop, 1)
                 break;
             }
         }
     }
 
+    // global flag, to mark down current event type when event emit
+    var eventType
 
-    //事件触发
+    // emit event
     EventProxy.prototype.emit = function () {
-        var type = arguments[0]
+        var type = eventType = arguments[0]
+
         limitType(type)
+
         var args = __slice.call(arguments, 1)
         var eventModel = this.$eventLibary[type]
-        var $aboutAll = this.$aboutAll
-        var allEventQueueIndex = findIndex($aboutAll.eventQueue, type)
+        var queue = eventModel.queue
 
-        if (allEventQueueIndex !== false) {
-            this.$emitAll($aboutAll, args, allEventQueueIndex);
-        } else if (eventModel && Array.isArray(eventModel.queue)) {
-            this.$emitNormal(eventModel, args)
+        if (eventModel && Array.isArray(queue)) {
+            var loop = 0,
+                item;
+            while (item = queue[loop++]) {
+                try {
+                    item.apply(null, args)
+                } catch (error) {
+                    console.warn(
+                        'This \"' +
+                        eventModel.type +
+                        '\" event handler goes wrong, occured in :\n\n' +
+                        item.toString() +
+                        '\n\nThe error info as follow: \n' +
+                        error.stack
+                    )
+                }
+            }
         } else {
             throw new Error('The event of ' + type + ' is not exist')
         }
     }
 
-
-    EventProxy.prototype.$aboutAll = {
-        eventQueue: [],
-        callBackArgs: [],
-        success: null,
-        reset: function () {
-            this.eventQueue = []
-            this.callBackArgs = []
-            this.success = null
-        }
-    }
-
-
-    EventProxy.prototype.$emitNormal = function (model, parameter) {
-        var loop = 0,
-            item;
-        var queue = model.queue
-        while (item = queue[loop++]) {
-            try {
-                item.apply(null, parameter)
-            } catch (error) {
-                console.warn(
-                    'This \"' + 
-                    model.type + 
-                    '\" event handler goes wrong, occured in :\n\n' + 
-                    item.toString() + 
-                    '\n\nThe error info as follow: \n' + 
-                    error.stack
-                )
-            }
-        }
-    }
-
-
-    EventProxy.prototype.$emitAll = function ($aboutAll, parameter, index) {
-        var eventQueue = $aboutAll.eventQueue
-        var callBackArgs = $aboutAll.callBackArgs
-        eventQueue.splice(index, 1)
-        callBackArgs[index] = parameter
-        //All事件队列已全部发布标志
-        if (eventQueue.length == 0) {
-            //合并参数，触发success回调，重置有关all的辅助参数
-            $aboutAll.callBackArgs = flattening(callBackArgs)
-            $aboutAll.success.call(null, $aboutAll.callBackArgs)
-            this.$aboutAll.reset()
-        }
-    }
-
-
-    //当eventQueue触发完后时，调用success
+    // event queue listen
     EventProxy.prototype.all = function (eventQueue, success) {
         if (!Array.isArray(eventQueue) || !isFunction(success)) return
-        var $aboutAll = this.$aboutAll
-        $aboutAll.eventQueue = $aboutAll.eventQueue.concat(eventQueue)
-        $aboutAll.success = success
+        var len = eventQueue.length
+        var argsCollection = []
+       
+        var consume = function () {
+            // use the global eventType to match type 
+            // and return index from eventQueue
+            var index = findIndex(eventQueue, eventType)
+            
+            if (index !== false) {
+                var ArgsArray = __slice.call(arguments)
+                // base on corresponding index from eventQueue,
+                // mapping the collection of callback arguments
+                argsCollection[index] = ArgsArray
+            }
+
+            // when len is zero mean that 
+            // the queue of all event executed completely
+            --len || success.call(null, flattening(argsCollection))
+        }
+
+        if (len) {
+            var i = 0
+            var key
+            while (key = eventQueue[i++]) {
+                this.once(key, consume)
+            }
+        }
     }
 
     return EventProxy
