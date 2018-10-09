@@ -1,12 +1,12 @@
 (function (root, factory) {
-    if (typeof module === "object") {
-        module.exports = factory();
+    if (typeof module !== "undefined") {
+        module.exports = factory(root);
     } else if (typeof define === 'function' && define.amd) {
-        define(factory);
+        define([], factory);
     } else {
-        root.EventProxy = factory();
+        root.EventProxy = factory(root);
     }
-})(typeof global !== 'undefined' ? global : typeof window !== 'undefined' ? window : this, function () {
+})(typeof global !== 'undefined' ? global : typeof window !== 'undefined' ? window : this, function (window) {
     "use strict";
 
     // limit type
@@ -22,11 +22,7 @@
 
     // clone deep
     var deepClone = function (src) {
-        var temp = {}
-        for (var key in src) {
-            temp[key] = src[key]
-        }
-        return JSON.parse(JSON.stringify(temp))
+        return JSON.parse(JSON.stringify(src))
     }
     
     // to flatten for nested array , for example：[[100, [102, 103]], 400, [500, 600]] -> [100, 102, 103, 400, 500, 600]
@@ -149,9 +145,9 @@
 
         var args = __slice.call(arguments, 1)
         var eventModel = this.$eventLibary[type]
-        var queue = eventModel.queue
 
-        if (eventModel && Array.isArray(queue)) {
+        if (eventModel && Array.isArray(eventModel.queue)) {
+            var queue = eventModel.queue
             var loop = 0,
                 item;
             while (item = queue[loop++]) {
@@ -168,9 +164,7 @@
                     )
                 }
             }
-        } else {
-            throw new Error('The event of ' + type + ' is not exist')
-        }
+        } 
     }
 
     // event queue listen
