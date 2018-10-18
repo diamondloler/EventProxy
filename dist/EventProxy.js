@@ -110,7 +110,6 @@
         }
 
         var eventModel = this.$eventLibary[type]
-
         // without event model
         if (!eventModel) return;
 
@@ -124,7 +123,6 @@
         var cbs = eventModel.queue
         var loop = cbs.length
         var cb
-
         while (loop--) {
             cb = cbs[loop]
             if (cb === handler) {
@@ -140,16 +138,14 @@
     // emit event
     EventProxy.prototype.emit = function () {
         var type = eventType = arguments[0]
-
         limitType(type)
 
-        var args = __slice.call(arguments, 1)
         var eventModel = this.$eventLibary[type]
-
         if (eventModel && Array.isArray(eventModel.queue)) {
             var queue = eventModel.queue
             var loop = 0,
                 item;
+            var args = __slice.call(arguments, 1);
             while (item = queue[loop++]) {
                 try {
                     item.apply(null, args)
